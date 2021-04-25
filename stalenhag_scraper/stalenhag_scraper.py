@@ -1,16 +1,46 @@
 import os
+from datetime import datetime
+
 import urllib.request
 from urllib.parse import urljoin
+
 from bs4 import BeautifulSoup
 
+import logging
 
 # TODO: get a logging system!
+# create log name
+now = datetime.now()
+log_name = now.strftime('%d-%m-%Y_%H:%M:%S') + '_stalenhag.log'
+# Create custom logger
+logger = logging.getLogger(__name__)
+# Create log handler (only for file)
+f_handler = logging.FileHandler(log_name)
+f_handler.setLevel(logging.WARNING)
+# Create formatter
+f_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+f_handler.setFormatter(f_formatter)
+
+logger.addHandler(f_handler)
+logger.setLevel(logging.DEBUG)
+
+
+logger.debug('debug on')
+logger.info('info on')
+logger.warning('warning on')
+logger.error('error on')
+logger.critical('critical on')
 
 base_url = "http://www.simonstalenhag.se/index.html"
-# TODO: Check if 'download_directory' exist, if not, 
-#       create it in the current working directory
+# TODO: Make checking OS agnostic
+# folder exist?
+if os.path.isdir('./img_stalenhag'):
+    logger.warning('img_stalenhag folder found')
+else:
+    os.mkdir('img_stalenhag')
+
 download_directory = "img_stalenhag"
-    
+
 
 # Data containers
 # Using sets as we don't want to store duplicates
@@ -22,7 +52,7 @@ downloaded = set()
 # going through the list
 while to_visit:
     current_page = to_visit.pop()
-    print("Woring on: ", current_page)
+    logger.info("Woring on: %s", current_page)
     visited.add(current_page)
     content = urllib.request.urlopen(current_page).read()
     
@@ -42,16 +72,16 @@ while to_visit:
         #   file.
         #
         if "http" in link["href"]:
-            print ("Ignoring absolute link: ", link["href"])
+            logger.info("Ignoring absolute link: %s", link["href"])
             pass
         elif "mailto" in link["href"]:
-            print ("Ignoring mailto link: ", link["href"])
+            logger.info("Ignoring mailto link: %s", link["href"])
             pass
         elif "jpg" in link["href"]:
             img_href = urljoin(current_page, link["href"])
             if img_href not in downloaded:
                 img_name = img_href.split("/")[-1]
-                print("Downloading: ", img_href)
+                logger.info("Downloading: %s", img_href)
                 # TODO: Find a better way to handle broken links
                 #       or incomplete requests
                 #
@@ -61,14 +91,13 @@ while to_visit:
                     urllib.request.urlretrieve(img_href, os.path.join(download_directory, img_name))
                     downloaded.add(img_href)
                 except:
-                    print ("Error")    
+                    logger.error("broken link: %s", img_href)    
             else:
-                print("Already Downloaded: ", img_href)
+                logger.info("Already Downloaded: %s", img_href)
         else:
             absolute_link = urljoin(base_url, link["href"])
             if absolute_link not in visited:
-                print("Adding to_visit set: ", absolute_link) 
+                logger.info("Adding to_visit set: %s", absolute_link) 
                 to_visit.add(absolute_link)
             else:
-                print("Already visited: ", absolute_link)
-print("Finish!")
+                logger.info("Already visited: %s", absolute_link)
